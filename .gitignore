@@ -1,0 +1,16 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Visual Studio
+.vs/
+
+## EF Core
+*.db
+
+## User secrets are stored outside the repo (dotnet user-secrets), never commit connection strings
+appsettings.*.local.json
+
+## AI assistant context, not part of the shipped project
+PROJECT_CONTEXT.md

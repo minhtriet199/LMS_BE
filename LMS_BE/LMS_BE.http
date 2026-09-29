@@ -1,0 +1,19 @@
+@LMS_BE_HostAddress = http://localhost:5000
+
+POST {{LMS_BE_HostAddress}}/api/auth/login
+Content-Type: application/json
+X-Requested-With: XMLHttpRequest
+
+{ "email": "student@lms.dev", "password": "Lms@12345" }
+
+###
+
+POST {{LMS_BE_HostAddress}}/api/auth/refresh
+X-Requested-With: XMLHttpRequest
+
+###
+
+POST {{LMS_BE_HostAddress}}/api/auth/logout
+X-Requested-With: XMLHttpRequest
+
+###
