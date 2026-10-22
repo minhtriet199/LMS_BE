@@ -17,3 +17,7 @@ POST {{LMS_BE_HostAddress}}/api/auth/logout
 X-Requested-With: XMLHttpRequest
 
 ###
+
+GET {{LMS_BE_HostAddress}}/api/health
+
+###
