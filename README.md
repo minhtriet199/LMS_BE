@@ -192,6 +192,222 @@ LMS_BE/
 Các API `auth` bắt buộc header `X-Requested-With: XMLHttpRequest` (chống CSRF). Frontend đã gắn sẵn.
 Tài liệu OpenAPI (Development): http://localhost:5000/openapi/v1.json
 
+## Thêm 1 API mới (ví dụ chạy được, theo CQRS)
+
+Quy ước của dự án: **Controller chỉ nhận request → gọi Handler → trả kết quả.** Mọi xử lý nằm trong Handler.
+
+- **Query** = chỉ đọc dữ liệu (GET). **Command** = thay đổi dữ liệu (POST / PUT / DELETE).
+- Mỗi tính năng là 1 thư mục trong `Features/`, ví dụ `Features/Me/`.
+- Handler đăng ký **Singleton** (tạo 1 lần, dùng chung). Vì database (`DbContext`, `UserManager`) là *Scoped*, handler **không được inject trực tiếp** chúng — thay vào đó inject `IServiceScopeFactory` và tạo scope bên trong hàm (xem code mẫu). Làm sai chỗ này backend sẽ báo lỗi `Cannot consume scoped service ...`.
+
+### Làm 1 lần: tạo 2 file khung
+
+Trong Visual Studio: chuột phải project **LMS_BE** → **Add** → **New Folder** đặt tên `Cqrs`, rồi chuột phải thư mục đó → **Add** → **Class...** đặt tên `Abstractions.cs`. Xóa hết nội dung, dán:
+
+```csharp
+namespace LMS_BE.Cqrs;
+
+public interface IQuery<TResult>;
+public interface ICommand<TResult>;
+
+public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
+{
+    Task<TResult> HandleAsync(TQuery query, CancellationToken ct = default);
+}
+
+public interface ICommandHandler<TCommand, TResult> where TCommand : ICommand<TResult>
+{
+    Task<TResult> HandleAsync(TCommand command, CancellationToken ct = default);
+}
+```
+
+### Ví dụ 1 — API đọc dữ liệu: `GET /api/me` (Query)
+
+**Bước 1.** Tạo thư mục `Features/Me`, thêm class `GetMe.cs`, dán:
+
+```csharp
+using LMS_BE.Cqrs;
+using LMS_BE.Dtos;
+using LMS_BE.Models;
+using Microsoft.AspNetCore.Identity;
+
+namespace LMS_BE.Features.Me;
+
+public record GetMeQuery(Guid UserId, string Role) : IQuery<UserDto?>;
+
+public class GetMeHandler(IServiceScopeFactory scopeFactory) : IQueryHandler<GetMeQuery, UserDto?>
+{
+    public async Task<UserDto?> HandleAsync(GetMeQuery query, CancellationToken ct = default)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await userManager.FindByIdAsync(query.UserId.ToString());
+        return user is null ? null : new UserDto(user.Id, user.FullName, user.Email!, query.Role);
+    }
+}
+```
+
+**Bước 2.** Trong `Controllers/`, thêm class `MeController.cs`, dán:
+
+```csharp
+using System.Security.Claims;
+using LMS_BE.Cqrs;
+using LMS_BE.Dtos;
+using LMS_BE.Features.Me;
+using LMS_BE.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace LMS_BE.Controllers;
+
+[ApiController]
+[Route("api/me")]
+[Authorize]
+public class MeController(IQueryHandler<GetMeQuery, UserDto?> getMe) : ControllerBase
+{
+    [HttpGet]
+    public async Task<ActionResult<UserDto>> Get(CancellationToken ct)
+    {
+        var role = User.FindFirstValue(LmsClaims.Role) ?? string.Empty;
+        var result = await getMe.HandleAsync(new GetMeQuery(User.GetUserId(), role), ct);
+        return result is null ? NotFound() : result;
+    }
+}
+```
+
+**Bước 3.** Mở `Program.cs`. Thêm 3 dòng `using` lên đầu file:
+
+```csharp
+using LMS_BE.Cqrs;
+using LMS_BE.Dtos;
+using LMS_BE.Features.Me;
+```
+
+Rồi thêm dòng đăng ký ngay dưới dòng `builder.Services.AddScoped<RefreshTokenService>();`:
+
+```csharp
+builder.Services.AddSingleton<IQueryHandler<GetMeQuery, UserDto?>, GetMeHandler>();
+```
+
+**Bước 4.** Bấm ▶ (F5) chạy lại backend.
+
+**Bước 5 — Thử.** Mở file `LMS_BE.http` trong Visual Studio:
+
+1. Bấm **Send request** trên dòng `POST .../api/auth/login` → trong kết quả sao chép giá trị của `token`.
+2. Thêm vào cuối file (dán token thật thay `DAN_TOKEN_VAO_DAY`):
+
+```http
+GET {{LMS_BE_HostAddress}}/api/me
+Authorization: Bearer DAN_TOKEN_VAO_DAY
+
+###
+```
+
+3. Bấm **Send request** trên dòng `GET .../api/me` → thấy `200 OK` cùng thông tin người dùng là xong. Không có dòng `Authorization` sẽ ra `401` (đúng như mong muốn).
+
+### Ví dụ 2 — API thay đổi dữ liệu: `PUT /api/me/name` (Command)
+
+Làm tương tự, 4 file/chỗ cần sửa:
+
+**`Features/Me/UpdateMyName.cs`**
+
+```csharp
+using LMS_BE.Cqrs;
+using LMS_BE.Models;
+using Microsoft.AspNetCore.Identity;
+
+namespace LMS_BE.Features.Me;
+
+public record UpdateMyNameCommand(Guid UserId, string FullName) : ICommand<bool>;
+
+public class UpdateMyNameHandler(IServiceScopeFactory scopeFactory) : ICommandHandler<UpdateMyNameCommand, bool>
+{
+    public async Task<bool> HandleAsync(UpdateMyNameCommand command, CancellationToken ct = default)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await userManager.FindByIdAsync(command.UserId.ToString());
+        if (user is null) return false;
+
+        user.FullName = command.FullName;
+        return (await userManager.UpdateAsync(user)).Succeeded;
+    }
+}
+```
+
+**`Dtos/Dtos.cs`** — thêm 1 dòng ở cuối file:
+
+```csharp
+public record UpdateNameRequest(string FullName);
+```
+
+**`Controllers/MeController.cs`** — thêm `ICommandHandler<UpdateMyNameCommand, bool> updateName` vào constructor và thêm hàm:
+
+```csharp
+public class MeController(
+    IQueryHandler<GetMeQuery, UserDto?> getMe,
+    ICommandHandler<UpdateMyNameCommand, bool> updateName) : ControllerBase
+{
+    // ... hàm Get ở trên giữ nguyên ...
+
+    [HttpPut("name")]
+    public async Task<IActionResult> UpdateName(UpdateNameRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.FullName)) return BadRequest();
+
+        var ok = await updateName.HandleAsync(new UpdateMyNameCommand(User.GetUserId(), request.FullName.Trim()), ct);
+        return ok ? NoContent() : NotFound();
+    }
+}
+```
+
+**`Program.cs`** — thêm dòng đăng ký:
+
+```csharp
+builder.Services.AddSingleton<ICommandHandler<UpdateMyNameCommand, bool>, UpdateMyNameHandler>();
+```
+
+Thử trong `LMS_BE.http`: `PUT {{LMS_BE_HostAddress}}/api/me/name` với header `Authorization`, `Content-Type: application/json` và body `{ "fullName": "Tên Mới" }` → `204 No Content`. Gọi lại `GET /api/me` sẽ thấy tên đã đổi.
+
+### Giới hạn theo vai trò (role)
+
+Thêm lên trên hàm hoặc class trong Controller:
+
+```csharp
+[Authorize(Roles = $"{Roles.Teacher},{Roles.Admin}")]
+```
+
+Sai role sẽ trả `403`. Dùng `Roles.Student` / `Roles.Teacher` / `Roles.Admin` từ `Services/Roles.cs`.
+
+### Gọi API từ Frontend
+
+Trong `LMS_FE/LMS_FE/src/services/`, tạo `meService.ts` (không gọi axios trực tiếp trong component):
+
+```ts
+import api from '../api/axios'
+import type { User } from '../types'
+
+async function getMe(): Promise<User> {
+  const { data } = await api.get<User>('/api/me')
+  return data
+}
+
+export const meService = { getMe }
+```
+
+Token và header chống CSRF đã được `src/api/axios.ts` tự gắn. Thêm trang mới xem README của LMS_FE, mục **Thêm 1 trang mới**.
+
+### Checklist khi thêm 1 API
+
+1. `Features/<Tên>/<HanhDong>.cs` — record Query/Command + Handler (Singleton, dùng `IServiceScopeFactory`).
+2. `Controllers/<Tên>Controller.cs` — inject handler, gọi `HandleAsync`.
+3. `Program.cs` — thêm `AddSingleton<IQueryHandler<...>, ...>` (hoặc `ICommandHandler`).
+4. Cần bảng mới? Xem mục **Thêm bảng mới** bên dưới (EF migration).
+5. Chạy lại ▶ → thử trong `LMS_BE.http`.
+6. Cập nhật bảng **API hiện có** ở trên.
+
 ## Thêm bảng mới (cho dev)
 
 Bảng **luôn** tạo bằng EF Core migration, không tạo tay trong pgAdmin:
