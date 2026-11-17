@@ -62,8 +62,8 @@ Mở **Command Prompt**, chạy:
 mkdir C:\Code\LMS
 cd C:\Code\LMS
 git clone https://github.com/minhtriet199/LMS_DB.git
-git clone -b develop https://github.com/minhtriet199/LMS_BE.git
-git clone -b develop https://github.com/minhtriet199/LMS_FE.git
+git clone -b develop https://github.com/minhtriet199/LMS_BE.git // git checkout develop
+git clone -b develop https://github.com/minhtriet199/LMS_FE.git // git checkout develop
 ```
 
 Kết quả: thư mục `C:\Code\LMS` có 3 thư mục con `LMS_DB`, `LMS_BE`, `LMS_FE`.
@@ -81,7 +81,7 @@ Chỉ cần tạo database rỗng. **Bảng sẽ do backend tự tạo** ở Bư
 Mật khẩu **không** được ghi vào code (để không lộ lên GitHub). Mỗi người lưu trong **User Secrets** trên máy mình:
 
 1. Mở Visual Studio → **Open a project or solution** → chọn `C:\Code\LMS\LMS_BE\LMS_BE.slnx`.
-2. Trong **Solution Explorer** (bên phải), chuột phải project **LMS_BE** → **Manage User Secrets**.
+2. Trong **Solution Explorer** (bên phải), chuột phải project **LMS_BE** → **Manage User Secrets**. 
 3. Một file `secrets.json` mở ra. Xóa hết nội dung, dán đoạn sau và **thay `MAT_KHAU_CUA_BAN`** bằng mật khẩu postgres của bạn:
 
 ```json
@@ -113,7 +113,7 @@ Mật khẩu **không** được ghi vào code (để không lộ lên GitHub). 
    ```
    (Hoặc ngay trong Swagger: bấm dòng **GET /api/health** → nút xanh **Execute**.)
 
-Lần chạy đầu tiên backend sẽ **tự tạo bảng** trong LMS_DB và **tự tạo 3 tài khoản demo**.
+Lần chạy đầu tiên backend sẽ **tự tạo bảng** trong LMS_DB và **tự tạo 3 tài khoản demo**. > Tool > PSQL Tool >SELECT * FROM "Users" để xem info 3 account demo 
 Vào pgAdmin → LMS_DB → chuột phải → **Refresh** → **Schemas › public › Tables** sẽ thấy `Users`, `Roles`, `UserRoles`, `RefreshTokens`...
 
 > Lần đầu console có dòng đỏ `fail: ... __EFMigrationsHistory` — **bình thường**, do EF kiểm tra bảng lịch sử trước khi tạo nó.
@@ -195,7 +195,8 @@ API nào có **hình ổ khóa** ở cuối dòng là API cần đăng nhập. L
 1. Đảm bảo PostgreSQL đang chạy (cài xong nó tự chạy cùng Windows).
 2. Visual Studio → mở `LMS_BE.slnx` → ▶ (trình duyệt tự mở Swagger để thử API).
 3. VS Code → `LMS_FE/LMS_FE` → `npm run dev`.
-4. Trước khi code: `git pull`. Code xong: commit & push lên nhánh `develop`.
+4. Trước khi code: `git pull LMS_FE + git pull LMS_BE`. Code xong: commit & push lên nhánh `develop`.
+5. How to push code: "git add ." + Enter > git commit -m "COMMENT thứ đã thay đổi cho lần push này" > git push origin develop
 
 ## Gặp lỗi?
 
