@@ -23,13 +23,23 @@ public static class DbSeeder
                 await roleManager.CreateAsync(new ApplicationRole { Name = role });
         }
 
-        if (await db.Users.AnyAsync()) return;
+        // Seed từng tài khoản độc lập, không bỏ qua nếu database đã có user khác.
 
-        await CreateUserAsync(userManager, "student@lms.dev", "Nguyễn Văn An", Roles.Student);
-        await CreateUserAsync(userManager, "teacher@lms.dev", "Trần Thị Bình", Roles.Teacher);
-        await CreateUserAsync(userManager, "admin@lms.dev", "Lê Quản Trị", Roles.Admin);
+        await EnsureUserAsync(userManager, "student@lms.dev", "Nguyễn Văn An", Roles.Student);
+        await EnsureUserAsync(userManager, "teacher@lms.dev", "Trần Thị Bình", Roles.Teacher);
+        await EnsureUserAsync(userManager, "admin@lms.dev", "Lê Quản Trị", Roles.Admin);
     }
 
+    private static async Task<ApplicationUser> EnsureUserAsync(
+        UserManager<ApplicationUser> manager, string email, string fullName, string role)
+    {
+        var existing = await manager.FindByEmailAsync(email);
+        if (existing != null) {
+            if (!await manager.IsInRoleAsync(existing, role)) await manager.AddToRoleAsync(existing, role);
+            return existing; // Không tự ý reset mật khẩu của tài khoản đã tồn tại.
+        }
+        return await CreateUserAsync(manager,email,fullName,role);
+    }
     private static async Task<ApplicationUser> CreateUserAsync(
         UserManager<ApplicationUser> userManager, string email, string fullName, string role)
     {

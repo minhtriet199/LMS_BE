@@ -1,0 +1,10 @@
+LMS_BE UPDATE ONLY - comparison against uploaded LMS_BE.7z
+
+Extract into existing LMS_BE/LMS_BE/ project folder, preserving folder structure.
+27 new files, 3 modified files: Program.cs, Data/ApplicationDbContext.cs, Data/DbSeeder.cs.
+Back up the project and PostgreSQL before copying.
+Existing appsettings.json, appsettings.Development.json, csproj, previous migrations, and snapshot are unchanged and excluded.
+WARNING: DbSeeder.SeedAsync() invokes Database.MigrateAsync() at application startup in Development.
+The added migration uses hand-written SQL and has not been tested against your live database.
+Do not run the application against your real DB until you have reviewed migration and backup.
+Run dotnet build and review dotnet ef migrations script before applying.

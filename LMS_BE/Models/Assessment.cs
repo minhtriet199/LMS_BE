@@ -1,0 +1,2 @@
+namespace LMS_BE.Models;
+public class Assessment { public Guid Id {get;set;}=Guid.NewGuid(); public Guid CourseId {get;set;} public Course? Course {get;set;} public string Title {get;set;}=""; public string AssessmentType {get;set;}="Quiz"; public decimal MaxScore {get;set;}=10; public DateTimeOffset? DueAt {get;set;} public ICollection<Question> Questions {get;set;}=new List<Question>(); public ICollection<Submission> Submissions {get;set;}=new List<Submission>(); }

@@ -1,0 +1,2 @@
+namespace LMS_BE.Models;
+public class CourseClass { public Guid Id {get;set;}=Guid.NewGuid(); public Guid CourseId {get;set;} public Course? Course {get;set;} public Guid InstructorId {get;set;} public ApplicationUser? Instructor {get;set;} public string Semester {get;set;}=""; public string ClassName {get;set;}=""; public DateOnly StartDate {get;set;} public DateOnly EndDate {get;set;} public ICollection<Enrollment> Enrollments {get;set;}=new List<Enrollment>(); public ICollection<ClassSession> Sessions {get;set;}=new List<ClassSession>(); }

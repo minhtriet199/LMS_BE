@@ -1,0 +1,11 @@
+using LMS_BE.Data; using LMS_BE.Models; using Microsoft.AspNetCore.Mvc; using Microsoft.AspNetCore.Authorization; using Microsoft.EntityFrameworkCore;
+namespace LMS_BE.Controllers;
+[Route("api/classes")]
+public class ClassesController(ApplicationDbContext db):LmsControllerBase(db){
+ [HttpGet]public async Task<IActionResult> List(){var q=Db.CourseClasses.AsNoTracking().AsQueryable();if(!IsAdmin)q=IsTeacher?q.Where(c=>c.InstructorId==CurrentUserId):q.Where(c=>c.Enrollments.Any(e=>e.StudentId==CurrentUserId));return Ok(await q.Select(c=>new{c.Id,c.ClassName,c.Semester,c.CourseId,Course=c.Course!.CourseName,c.InstructorId,Students=c.Enrollments.Count}).ToListAsync());}
+ public record CreateClass(Guid CourseId,Guid InstructorId,string ClassName,string Semester,DateOnly StartDate,DateOnly EndDate);
+ [HttpPost][Authorize(Roles="Admin")]public async Task<IActionResult> Create(CreateClass x){if(!await Db.Courses.AnyAsync(c=>c.Id==x.CourseId)||!await Db.Users.AnyAsync(u=>u.Id==x.InstructorId))return BadRequest("Invalid course/instructor");var c=new CourseClass{CourseId=x.CourseId,InstructorId=x.InstructorId,ClassName=x.ClassName,Semester=x.Semester,StartDate=x.StartDate,EndDate=x.EndDate};Db.CourseClasses.Add(c);await Db.SaveChangesAsync();return Ok(new{c.Id});}
+ [HttpPost("{id:guid}/enrollments")][Authorize(Roles="Admin,Teacher")]public async Task<IActionResult> Enroll(Guid id,[FromBody]EnrollStudent x){var c=await Db.CourseClasses.FindAsync(id);if(c==null)return NotFound();if(!IsAdmin&&c.InstructorId!=CurrentUserId)return Forbid();if(!await Db.Users.AnyAsync(u=>u.Id==x.StudentId))return BadRequest("Student not found");if(await Db.Enrollments.AnyAsync(e=>e.ClassId==id&&e.StudentId==x.StudentId))return Conflict();Db.Enrollments.Add(new Enrollment{ClassId=id,StudentId=x.StudentId});await Db.SaveChangesAsync();return Ok();}
+ public record EnrollStudent(Guid StudentId);
+ [HttpGet("{id:guid}/students")][Authorize(Roles="Admin,Teacher")]public async Task<IActionResult> Students(Guid id){var c=await Db.CourseClasses.FindAsync(id);if(c==null)return NotFound();if(!IsAdmin&&c.InstructorId!=CurrentUserId)return Forbid();return Ok(await Db.Enrollments.Where(e=>e.ClassId==id).Select(e=>new{e.StudentId,e.Student!.FullName,e.Student.Email,e.Status}).ToListAsync());}
+}

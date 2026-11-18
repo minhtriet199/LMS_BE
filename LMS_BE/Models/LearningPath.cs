@@ -1,0 +1,2 @@
+namespace LMS_BE.Models;
+public class LearningPath { public Guid Id {get;set;}=Guid.NewGuid(); public Guid StudentId {get;set;} public ApplicationUser? Student {get;set;} public Guid CourseId {get;set;} public Course? Course {get;set;} public DateTimeOffset GeneratedAt {get;set;}=DateTimeOffset.UtcNow; public string Status {get;set;}="Active"; public string Explanation {get;set;}=""; public ICollection<LearningPathItem> Items {get;set;}=new List<LearningPathItem>(); }

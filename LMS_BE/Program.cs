@@ -10,8 +10,29 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Swagger (trang thử API): http://localhost:5000/swagger — cấu hình trong Swagger/SwaggerSetup.cs
-builder.Services.AddLmsSwagger();
+builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Keep your existing CSRF header configuration
+    options.OperationFilter<LMS_BE.Swagger.SwaggerCsrfOperationFilter>();
+
+    // Add JWT authentication to Swagger
+    options.AddSecurityDefinition("Bearer",
+        new Microsoft.OpenApi.OpenApiSecurityScheme
+        {
+            Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Paste your JWT access token here."
+        });
+
+    options.AddSecurityRequirement(document =>
+        new Microsoft.OpenApi.OpenApiSecurityRequirement
+        {
+            [new Microsoft.OpenApi.OpenApiSecuritySchemeReference(
+                "Bearer", document)] = new List<string>()
+        });
+});
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -55,10 +76,17 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+<<<<<<< HEAD
     app.UseLmsSwagger();
+=======
+    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+>>>>>>> 48afb3d (Updated_BE with API)
 
     using var scope = app.Services.CreateScope();
     await DbSeeder.SeedAsync(scope.ServiceProvider);
+    await DemoDataSeeder.SeedAsync(scope.ServiceProvider);
 }
 else
 {

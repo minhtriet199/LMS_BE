@@ -1,0 +1,2 @@
+namespace LMS_BE.Models;
+public class RiskPrediction { public Guid Id {get;set;}=Guid.NewGuid(); public Guid StudentId {get;set;} public ApplicationUser? Student {get;set;} public Guid ClassId {get;set;} public CourseClass? Class {get;set;} public decimal RiskScore {get;set;} public string RiskLevel {get;set;}="Low"; public string Explanation {get;set;}=""; public DateTimeOffset PredictedAt {get;set;}=DateTimeOffset.UtcNow; }

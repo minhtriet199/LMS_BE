@@ -1,0 +1,2 @@
+namespace LMS_BE.Models;
+public class Course { public Guid Id {get;set;}=Guid.NewGuid(); public string CourseCode {get;set;}=""; public string CourseName {get;set;}=""; public string Description {get;set;}=""; public Guid CreatedById {get;set;} public ApplicationUser? CreatedBy {get;set;} public DateTimeOffset CreatedAt {get;set;}=DateTimeOffset.UtcNow; public ICollection<CourseClass> Classes {get;set;}=new List<CourseClass>(); public ICollection<Module> Modules {get;set;}=new List<Module>(); public ICollection<Assessment> Assessments {get;set;}=new List<Assessment>(); }
