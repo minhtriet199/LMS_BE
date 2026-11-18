@@ -21,6 +21,7 @@ public class AuthController(
     private const string CsrfHeaderValue = "XMLHttpRequest";
 
     [HttpPost("login")]
+    [EndpointSummary("Đăng nhập: trả về access token (hạn 15 phút) + cookie refresh")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
         if (!HasCsrfHeader()) return BadRequest();
@@ -43,6 +44,7 @@ public class AuthController(
     }
 
     [HttpPost("refresh")]
+    [EndpointSummary("Lấy access token mới bằng cookie refresh (giữ đăng nhập khi F5)")]
     public async Task<ActionResult<AuthResponse>> Refresh()
     {
         if (!HasCsrfHeader()) return BadRequest();
@@ -70,6 +72,8 @@ public class AuthController(
     }
 
     [HttpPost("logout")]
+    [EndpointSummary("Đăng xuất: thu hồi refresh token")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Logout()
     {
         if (!HasCsrfHeader()) return BadRequest();

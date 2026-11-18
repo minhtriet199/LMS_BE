@@ -3,13 +3,15 @@ using System.Text.Json.Serialization;
 using LMS_BE.Data;
 using LMS_BE.Models;
 using LMS_BE.Services;
+using LMS_BE.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+// Swagger (trang thử API): http://localhost:5000/swagger — cấu hình trong Swagger/SwaggerSetup.cs
+builder.Services.AddLmsSwagger();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -53,7 +55,7 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseLmsSwagger();
 
     using var scope = app.Services.CreateScope();
     await DbSeeder.SeedAsync(scope.ServiceProvider);

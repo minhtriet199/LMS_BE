@@ -9,6 +9,7 @@ namespace LMS_BE.Controllers;
 public class HealthController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet]
+    [EndpointSummary("Kiểm tra API đang chạy và kết nối được database")]
     public async Task<IActionResult> Get() =>
         await db.Database.CanConnectAsync()
             ? Ok(new { api = "ok", database = "ok" })

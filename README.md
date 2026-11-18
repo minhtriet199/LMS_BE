@@ -2,6 +2,7 @@
 
 > **Đây là hướng dẫn cài đặt đầy đủ cho cả dự án** (Database + Backend + Frontend).
 > Làm lần lượt từ Bước 0 đến Bước 6, không bỏ bước. Mất khoảng 30–45 phút lần đầu.
+> Mới học code? Không cần hiểu hết — cứ copy-paste lệnh và bấm đúng nút như hướng dẫn. Xong Bước 6 thì đọc mục **Thử API bằng Swagger** để tự gọi thử API.
 
 Dự án gồm 3 repo:
 
@@ -30,6 +31,8 @@ Trình duyệt ──> http://localhost:5173  (React / Vite — LMS_FE)
 | **5432** (DB) | Lúc cài PostgreSQL | `Port=` trong connection string (Bước 3) |
 
 Nhờ proxy của Vite, trình duyệt chỉ nói chuyện với `:5173`, nên **không cần cấu hình CORS** khi dev.
+
+Muốn thử API **không cần Frontend**: mở **http://localhost:5000/swagger** (trang Swagger — xem mục **Thử API bằng Swagger** bên dưới).
 
 ---
 
@@ -103,11 +106,12 @@ Mật khẩu **không** được ghi vào code (để không lộ lên GitHub). 
 ## Bước 4 — Chạy Backend
 
 1. Trên thanh công cụ Visual Studio, ô cạnh nút ▶ xanh chọn profile **http**.
-2. Bấm ▶ (hoặc **F5**). Cửa sổ Output/console hiện dòng `Now listening on: http://localhost:5000` là được.
+2. Bấm ▶ (hoặc **F5**). Cửa sổ Output/console hiện dòng `Now listening on: http://localhost:5000` là được, và trình duyệt **tự mở trang Swagger** (http://localhost:5000/swagger — trang liệt kê mọi API).
 3. Mở trình duyệt vào **http://localhost:5000/api/health** → phải thấy:
    ```json
    {"api":"ok","database":"ok"}
    ```
+   (Hoặc ngay trong Swagger: bấm dòng **GET /api/health** → nút xanh **Execute**.)
 
 Lần chạy đầu tiên backend sẽ **tự tạo bảng** trong LMS_DB và **tự tạo 3 tài khoản demo**.
 Vào pgAdmin → LMS_DB → chuột phải → **Refresh** → **Schemas › public › Tables** sẽ thấy `Users`, `Roles`, `UserRoles`, `RefreshTokens`...
@@ -138,10 +142,58 @@ Vào pgAdmin → LMS_DB → chuột phải → **Refresh** → **Schemas › pub
 
 ---
 
+## Thử API bằng Swagger (không cần viết code)
+
+**Swagger** là trang web tự liệt kê **mọi API** của backend và cho bấm gọi thử ngay. Dùng để kiểm tra API vừa viết, hoặc xem API nhận/trả dữ liệu gì trước khi làm Frontend.
+
+Bấm ▶ trong Visual Studio là trình duyệt tự mở **http://localhost:5000/swagger** (không tự mở thì gõ địa chỉ này vào trình duyệt). Trang này chỉ có khi chạy trên máy dev.
+
+| Từ | Nghĩa |
+|---|---|
+| **API** | 1 "cửa" của backend, ví dụ `POST /api/auth/login`. `GET` = lấy dữ liệu, `POST` = gửi/tạo, `PUT` = sửa, `DELETE` = xóa |
+| **Request body** | Dữ liệu mình gửi lên, dạng JSON |
+| **Response** | Kết quả trả về: **Code** (mã trạng thái, xem bảng dưới) + **Response body** (dữ liệu) |
+| **Token** | "Vé" chứng minh đã đăng nhập. Hết hạn sau **15 phút** |
+
+### 1. Gọi API không cần đăng nhập
+
+1. Bấm vào dòng **GET /api/health** để mở ra.
+2. Bấm nút xanh **Execute**.
+3. Kéo xuống phần **Server response**: cột **Code** là `200`, **Response body** là `{ "api": "ok", "database": "ok" }` là được.
+
+### 2. Đăng nhập
+
+1. Bấm dòng **POST /api/auth/login**. Ô **Request body** đã điền sẵn tài khoản sinh viên demo.
+2. Bấm **Execute** → Code `200`, trong Response body có `token`.
+3. Swagger **tự gắn token** vào nút **Authorize** (bên phải, phía trên danh sách API) — hình ổ khóa trên nút chuyển sang đóng.
+
+Muốn đăng nhập vai trò khác: trong ô body sửa `student@lms.dev` thành `teacher@lms.dev` hoặc `admin@lms.dev` (mật khẩu giữ nguyên), bấm **Execute** lại.
+
+### 3. Gọi API cần đăng nhập
+
+API nào có **hình ổ khóa** ở cuối dòng là API cần đăng nhập. Làm bước 2 trước, rồi mở API đó → **Execute** → Code `200`.
+
+> Nút **Authorize** vẫn mở khóa sau khi đăng nhập? Gắn token bằng tay: trong Response body của login, copy giá trị `token` (chuỗi dài bắt đầu bằng `eyJ`, không lấy dấu `"`) → bấm **Authorize** → dán vào ô **Value** → bấm **Authorize** → **Close**.
+
+### Đọc mã kết quả (Code)
+
+| Code | Nghĩa | Làm gì |
+|---|---|---|
+| `200`, `204` | Thành công (`204` = thành công, không trả dữ liệu) | — |
+| `400` | Dữ liệu gửi lên thiếu hoặc sai | Kiểm tra lại ô Request body |
+| `401` | Chưa đăng nhập, hoặc token hết hạn (15 phút) | Làm lại bước 2 |
+| `403` | Đã đăng nhập nhưng không đủ quyền (ví dụ API chỉ dành cho Giảng viên) | Đăng nhập bằng tài khoản đúng vai trò |
+| `404` | Không tìm thấy dữ liệu | Kiểm tra id / đường dẫn |
+| `500` | Lỗi trong code backend | Xem dòng đỏ trong cửa sổ console của Visual Studio |
+
+> Gọi API qua Swagger là **gọi thật**: thêm / sửa / xóa ở đây sẽ thay đổi dữ liệu thật trong database LMS_DB trên máy bạn.
+
+---
+
 ## Hằng ngày làm việc
 
 1. Đảm bảo PostgreSQL đang chạy (cài xong nó tự chạy cùng Windows).
-2. Visual Studio → mở `LMS_BE.slnx` → ▶.
+2. Visual Studio → mở `LMS_BE.slnx` → ▶ (trình duyệt tự mở Swagger để thử API).
 3. VS Code → `LMS_FE/LMS_FE` → `npm run dev`.
 4. Trước khi code: `git pull`. Code xong: commit & push lên nhánh `develop`.
 
@@ -160,6 +212,11 @@ Vào pgAdmin → LMS_DB → chuột phải → **Refresh** → **Schemas › pub
 | `running scripts is disabled on this system` khi chạy npm | Terminal PowerShell chặn script. Trong VS Code bấm mũi tên cạnh dấu **+** của terminal → chọn **Command Prompt**, chạy lại |
 | `Port 5173 is already in use` | Đang có 1 terminal `npm run dev` khác — tắt nó (Ctrl+C) |
 | Muốn làm lại DB từ đầu | pgAdmin: chạy `LMS_DB/scripts/99_reset_database.sql` trên LMS_DB → chạy lại backend |
+| Bấm Execute trong Swagger báo `Failed to fetch` (Chrome/Edge) hoặc `NetworkError when attempting to fetch resource` (Firefox) | Backend đã tắt → bấm ▶ lại trong Visual Studio, rồi F5 trang Swagger |
+| Mở http://localhost:5000/swagger báo không tìm thấy (404) | Code trên máy chưa có Swagger → `git pull` rồi bấm ▶ lại. Vẫn lỗi: chạy bằng profile **http** (Bước 4) — Swagger chỉ bật khi Development |
+| Không thấy nút **Execute** trong Swagger | Đã lỡ bấm **Cancel** → bấm **Try it out** để hiện lại |
+| API có hình ổ khóa trả `401` | Chưa đăng nhập hoặc token quá 15 phút → **Execute** lại `POST /api/auth/login` |
+| Gọi `/api/auth/...` bằng công cụ khác bị `400` | Thiếu header `X-Requested-With: XMLHttpRequest` (Swagger, Frontend và `LMS_BE.http` đã tự gắn) |
 
 ---
 
@@ -176,7 +233,8 @@ LMS_BE/
    ├─ Dtos/                    → dữ liệu gửi/nhận qua API
    ├─ Services/                → JwtTokenService, RefreshTokenService, Roles
    ├─ Migrations/              → EF Core migrations (lịch sử thay đổi bảng)
-   ├─ Properties/launchSettings.json → cổng 5000
+   ├─ Swagger/SwaggerSetup.cs  → trang Swagger: nút Authorize, tự gắn token, điền sẵn tài khoản demo
+   ├─ Properties/launchSettings.json → cổng 5000, bấm ▶ tự mở Swagger
    └─ LMS_BE.http              → gọi thử API ngay trong Visual Studio
 ```
 
@@ -189,8 +247,8 @@ LMS_BE/
 | POST | `/api/auth/logout` | Thu hồi refresh token |
 | GET | `/api/health` | Kiểm tra API + kết nối DB |
 
-Các API `auth` bắt buộc header `X-Requested-With: XMLHttpRequest` (chống CSRF). Frontend đã gắn sẵn.
-Tài liệu OpenAPI (Development): http://localhost:5000/openapi/v1.json
+Các API `auth` bắt buộc header `X-Requested-With: XMLHttpRequest` (chống CSRF). Frontend và Swagger đã gắn sẵn.
+Xem và thử mọi API (Development): **http://localhost:5000/swagger** — API mới viết tự hiện ở đây, không cần khai báo thêm. File OpenAPI gốc: http://localhost:5000/openapi/v1.json
 
 ## Thêm 1 API mới (ví dụ chạy được, theo CQRS)
 
@@ -267,6 +325,7 @@ namespace LMS_BE.Controllers;
 public class MeController(IQueryHandler<GetMeQuery, UserDto?> getMe) : ControllerBase
 {
     [HttpGet]
+    [EndpointSummary("Thông tin người đang đăng nhập")]
     public async Task<ActionResult<UserDto>> Get(CancellationToken ct)
     {
         var role = User.FindFirstValue(LmsClaims.Role) ?? string.Empty;
@@ -275,6 +334,8 @@ public class MeController(IQueryHandler<GetMeQuery, UserDto?> getMe) : Controlle
     }
 }
 ```
+
+`[EndpointSummary("...")]` là dòng mô tả hiện cạnh API trong Swagger. `[Authorize]` làm API hiện **hình ổ khóa** (phải đăng nhập mới gọi được).
 
 **Bước 3.** Mở `Program.cs`. Thêm 3 dòng `using` lên đầu file:
 
@@ -292,19 +353,19 @@ builder.Services.AddSingleton<IQueryHandler<GetMeQuery, UserDto?>, GetMeHandler>
 
 **Bước 4.** Bấm ▶ (F5) chạy lại backend.
 
-**Bước 5 — Thử.** Mở file `LMS_BE.http` trong Visual Studio:
+**Bước 5 — Thử trong Swagger.** Trình duyệt tự mở http://localhost:5000/swagger (đang mở sẵn thì bấm F5 để tải lại trang):
 
-1. Bấm **Send request** trên dòng `POST .../api/auth/login` → trong kết quả sao chép giá trị của `token`.
-2. Thêm vào cuối file (dán token thật thay `DAN_TOKEN_VAO_DAY`):
+1. **POST /api/auth/login** → **Execute** (đăng nhập, token tự gắn vào nút Authorize).
+2. Dòng mới **GET /api/me** (có hình ổ khóa) → **Execute** → thấy Code `200` cùng thông tin người dùng là xong. Chưa đăng nhập mà gọi sẽ ra `401` (đúng như mong muốn).
 
-```http
-GET {{LMS_BE_HostAddress}}/api/me
-Authorization: Bearer DAN_TOKEN_VAO_DAY
-
-###
-```
-
-3. Bấm **Send request** trên dòng `GET .../api/me` → thấy `200 OK` cùng thông tin người dùng là xong. Không có dòng `Authorization` sẽ ra `401` (đúng như mong muốn).
+> Thích dùng file `LMS_BE.http` trong Visual Studio cũng được: bấm **Send request** trên dòng `POST .../api/auth/login`, sao chép giá trị `token`, rồi thêm vào cuối file (dán token thật thay `DAN_TOKEN_VAO_DAY`) và bấm **Send request** trên dòng mới:
+>
+> ```http
+> GET {{LMS_BE_HostAddress}}/api/me
+> Authorization: Bearer DAN_TOKEN_VAO_DAY
+>
+> ###
+> ```
 
 ### Ví dụ 2 — API thay đổi dữ liệu: `PUT /api/me/name` (Command)
 
@@ -353,6 +414,8 @@ public class MeController(
     // ... hàm Get ở trên giữ nguyên ...
 
     [HttpPut("name")]
+    [EndpointSummary("Đổi tên người đang đăng nhập")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)] // báo Swagger: thành công trả 204
     public async Task<IActionResult> UpdateName(UpdateNameRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.FullName)) return BadRequest();
@@ -369,7 +432,8 @@ public class MeController(
 builder.Services.AddSingleton<ICommandHandler<UpdateMyNameCommand, bool>, UpdateMyNameHandler>();
 ```
 
-Thử trong `LMS_BE.http`: `PUT {{LMS_BE_HostAddress}}/api/me/name` với header `Authorization`, `Content-Type: application/json` và body `{ "fullName": "Tên Mới" }` → `204 No Content`. Gọi lại `GET /api/me` sẽ thấy tên đã đổi.
+Thử trong Swagger: đăng nhập như Ví dụ 1 → mở **PUT /api/me/name** → trong ô Request body thay `"string"` bằng `"Tên Mới"` → **Execute** → Code `204`. Gọi lại **GET /api/me** sẽ thấy tên đã đổi.
+(Dùng `LMS_BE.http`: `PUT {{LMS_BE_HostAddress}}/api/me/name` với header `Authorization`, `Content-Type: application/json` và body `{ "fullName": "Tên Mới" }`.)
 
 ### Giới hạn theo vai trò (role)
 
@@ -380,6 +444,7 @@ Thêm lên trên hàm hoặc class trong Controller:
 ```
 
 Sai role sẽ trả `403`. Dùng `Roles.Student` / `Roles.Teacher` / `Roles.Admin` từ `Services/Roles.cs`.
+Thử trong Swagger: đăng nhập bằng `teacher@lms.dev` (sửa email trong body của login) → gọi API → `200`; đăng nhập lại bằng `student@lms.dev` → `403`.
 
 ### Gọi API từ Frontend
 
@@ -402,10 +467,10 @@ Token và header chống CSRF đã được `src/api/axios.ts` tự gắn. Thêm
 ### Checklist khi thêm 1 API
 
 1. `Features/<Tên>/<HanhDong>.cs` — record Query/Command + Handler (Singleton, dùng `IServiceScopeFactory`).
-2. `Controllers/<Tên>Controller.cs` — inject handler, gọi `HandleAsync`.
+2. `Controllers/<Tên>Controller.cs` — inject handler, gọi `HandleAsync`, thêm `[EndpointSummary("...")]` để Swagger có mô tả.
 3. `Program.cs` — thêm `AddSingleton<IQueryHandler<...>, ...>` (hoặc `ICommandHandler`).
 4. Cần bảng mới? Xem mục **Thêm bảng mới** bên dưới (EF migration).
-5. Chạy lại ▶ → thử trong `LMS_BE.http`.
+5. Chạy lại ▶ → thử trong Swagger (http://localhost:5000/swagger) hoặc `LMS_BE.http`.
 6. Cập nhật bảng **API hiện có** ở trên.
 
 ## Thêm bảng mới (cho dev)
