@@ -76,13 +76,9 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-<<<<<<< HEAD
-    app.UseLmsSwagger();
-=======
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
->>>>>>> 48afb3d (Updated_BE with API)
 
     using var scope = app.Services.CreateScope();
     await DbSeeder.SeedAsync(scope.ServiceProvider);
